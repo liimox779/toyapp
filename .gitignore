@@ -6,3 +6,4 @@ prisma/dev.db-journal
 certs/
 .claude/
 .vs/
+prisma/migrations_sqlite_backup/
