@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String   @default("viewer") // "viewer" (Lv.1) | "editor" (Lv.2) | "admin" (Lv.3)
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id       Int     @id @default(autoincrement())
+  sku      String  @unique
+  jancode  String // JAN barcode (13-digit)
+  imageUrl String
+
+  workCategory      String // หมวดงาน
+  characterCategory String // หมวดตัวละคร
+  modelName         String // ชื่อรุ่น
+  characterName     String // ชื่อตัวละคร
+  series            String // ภาค
+  height            String // ความสูง
+  weight            String // น้ำหนัก
+
+  // ราคามือหนึ่งปลีก & ราคาพิเศษ
+  retailPrice        Float
+  retailSpecialPrice Float?
+
+  // ราคาตัวแทน
+  agentPrice Float?
+
+  // ราคามือสองปกติ & ราคาพิเศษ
+  usedPrice        Float?
+  usedSpecialPrice Float?
+
+  // ราคามือสองของไม่ครบปกติ & ราคาพิเศษ
+  usedIncompletePrice        Float?
+  usedIncompleteSpecialPrice Float?
+
+  // ราคาตัวประกอบปกติ & ราคาพิเศษ
+  partPrice        Float?
+  partSpecialPrice Float?
+
+  // ราคาประกอบไม่ครบปกติ & ราคาพิเศษ
+  partIncompletePrice        Float?
+  partIncompleteSpecialPrice Float?
+
+  // JSON-stringified array of image feature vector floats (CLIP embedding) for the primary image
+  vectorEmbedding String?
+
+  images ProductImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  imageUrl  String
+  vectorEmbedding String? // JSON-stringified array of image feature vector floats (CLIP embedding)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  action    String // CREATE | UPDATE | DELETE
+  sku       String
+  modelName String
+  summary   String // human-readable description of what changed
+  username  String
+  createdAt DateTime @default(now())
+}

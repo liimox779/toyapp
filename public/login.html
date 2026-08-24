@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Toy Search System</title>
+  <script>
+    (function () {
+      var stored = localStorage.getItem('theme');
+      var isDark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('dark', isDark);
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    html.dark { color-scheme: dark; }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-950 min-h-screen flex items-center justify-center p-4 transition-colors" x-data="loginForm()">
+  <div class="w-full max-w-sm">
+    <button
+      @click="toggleTheme()"
+      type="button"
+      :title="darkMode ? 'Switch to light mode' : 'Switch to dark mode'"
+      class="mb-3 ml-auto flex items-center justify-center text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500 rounded-lg p-2 transition"
+    >
+      <svg x-show="!darkMode" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" /></svg>
+      <svg x-show="darkMode" x-cloak class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" /></svg>
+    </button>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-gray-200/60 dark:shadow-black/40 border border-gray-200 dark:border-gray-700 p-8">
+      <div class="text-center mb-8 pb-6 border-b border-gray-100 dark:border-gray-700">
+        <div class="mx-auto w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-500 shadow-sm flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" class="w-7 h-7 text-white">
+            <circle cx="10" cy="10" r="6.25" stroke="currentColor" stroke-width="1.75" />
+            <path d="M14.5 14.5 20 20" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+            <rect x="7" y="7" width="2.4" height="2.4" rx="0.6" fill="currentColor" />
+            <rect x="10.1" y="7" width="2.4" height="2.4" rx="0.6" fill="currentColor" opacity="0.55" />
+            <rect x="7" y="10.1" width="2.4" height="2.4" rx="0.6" fill="currentColor" opacity="0.55" />
+          </svg>
+        </div>
+        <h1 class="mt-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Toy Search System</h1>
+        <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Sign in to manage products</p>
+      </div>
+
+      <form @submit.prevent="submit" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Username</label>
+          <input
+            x-model="username"
+            type="text"
+            autocomplete="username"
+            class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3.5 py-2.5 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+            required
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Password</label>
+          <input
+            x-model="password"
+            type="password"
+            autocomplete="current-password"
+            class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3.5 py-2.5 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+            required
+          />
+        </div>
+
+        <p x-show="error" x-text="error" class="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/30 rounded-lg px-3 py-2"></p>
+
+        <button
+          type="submit"
+          :disabled="loading"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2.5 text-sm font-medium shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span x-show="!loading">Sign in</span>
+          <span x-show="loading">Signing in…</span>
+        </button>
+
+        <button type="button" @click="openChangePassword()" class="w-full text-center text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+          Change password
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Change password modal -->
+  <div x-show="changePasswordOpen" x-cloak class="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4" @keydown.escape.window="closeChangePassword()">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-sm p-6" @click.outside="closeChangePassword()">
+      <div class="flex items-center justify-between mb-5 pb-4 border-b border-gray-100 dark:border-gray-700">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Change Password</h3>
+        <button @click="closeChangePassword()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">&times;</button>
+      </div>
+
+      <template x-if="!changePasswordSuccess">
+        <form @submit.prevent="submitChangePassword()" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Username</label>
+            <input x-model="cpForm.username" type="text" autocomplete="username" required class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3.5 py-2.5 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Current password</label>
+            <input x-model="cpForm.currentPassword" type="password" autocomplete="current-password" required class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3.5 py-2.5 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">New password</label>
+            <input x-model="cpForm.newPassword" type="password" autocomplete="new-password" required minlength="6" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3.5 py-2.5 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1.5">Confirm new password</label>
+            <input x-model="cpForm.confirmPassword" type="password" autocomplete="new-password" required minlength="6" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3.5 py-2.5 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+          </div>
+
+          <p x-show="cpError" x-text="cpError" class="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/30 rounded-lg px-3 py-2"></p>
+
+          <div class="flex justify-end gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button type="button" @click="closeChangePassword()" class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 transition">Cancel</button>
+            <button type="submit" :disabled="cpSaving" class="text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 shadow-sm transition disabled:opacity-50">
+              <span x-show="!cpSaving">Update password</span>
+              <span x-show="cpSaving">Updating…</span>
+            </button>
+          </div>
+        </form>
+      </template>
+
+      <template x-if="changePasswordSuccess">
+        <div class="space-y-4">
+          <p class="text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 rounded-lg px-3 py-2">Password updated. You can now sign in with your new password.</p>
+          <div class="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button type="button" @click="closeChangePassword()" class="text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 shadow-sm transition">Done</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <script>
+    function loginForm() {
+      return {
+        username: '',
+        password: '',
+        error: '',
+        loading: false,
+        darkMode: document.documentElement.classList.contains('dark'),
+        changePasswordOpen: false,
+        changePasswordSuccess: false,
+        cpForm: { username: '', currentPassword: '', newPassword: '', confirmPassword: '' },
+        cpError: '',
+        cpSaving: false,
+        toggleTheme() {
+          this.darkMode = !this.darkMode;
+          document.documentElement.classList.toggle('dark', this.darkMode);
+          localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+        },
+        async submit() {
+          this.error = '';
+          this.loading = true;
+          try {
+            const res = await fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: this.username, password: this.password }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              this.error = data.error || 'Login failed';
+              this.loading = false;
+              return;
+            }
+            window.location.href = '/';
+          } catch (e) {
+            this.error = 'Network error, please try again';
+            this.loading = false;
+          }
+        },
+        openChangePassword() {
+          this.cpForm = { username: this.username, currentPassword: '', newPassword: '', confirmPassword: '' };
+          this.cpError = '';
+          this.changePasswordSuccess = false;
+          this.changePasswordOpen = true;
+        },
+        closeChangePassword() {
+          this.changePasswordOpen = false;
+        },
+        async submitChangePassword() {
+          this.cpError = '';
+          if (this.cpForm.newPassword !== this.cpForm.confirmPassword) {
+            this.cpError = 'New password and confirmation do not match';
+            return;
+          }
+          this.cpSaving = true;
+          try {
+            const res = await fetch('/api/auth/change-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                username: this.cpForm.username,
+                currentPassword: this.cpForm.currentPassword,
+                newPassword: this.cpForm.newPassword,
+              }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              this.cpError = data.error || 'Could not update password';
+              this.cpSaving = false;
+              return;
+            }
+            this.changePasswordSuccess = true;
+          } catch (e) {
+            this.cpError = 'Network error, please try again';
+          }
+          this.cpSaving = false;
+        },
+      };
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Toy Search System</title>
+  <script>
+    (function () {
+      var stored = localStorage.getItem('theme');
+      var isDark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('dark', isDark);
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    html.dark { color-scheme: dark; }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-700 dark:bg-gray-950 min-h-screen text-gray-800 dark:text-gray-200 dark:text-gray-200 transition-colors" x-data="app()" x-init="init()">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button @click="mobileMenuOpen = !mobileMenuOpen" class="sm:hidden text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 -ml-1 p-1">
+          <svg x-show="!mobileMenuOpen" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" /></svg>
+          <svg x-show="mobileMenuOpen" x-cloak class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+        </button>
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-500 shadow-sm flex items-center justify-center shrink-0">
+          <svg viewBox="0 0 24 24" fill="none" class="w-5 h-5 text-white">
+            <circle cx="10" cy="10" r="6.25" stroke="currentColor" stroke-width="1.75" />
+            <path d="M14.5 14.5 20 20" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+            <rect x="7" y="7" width="2.4" height="2.4" rx="0.6" fill="currentColor" />
+            <rect x="10.1" y="7" width="2.4" height="2.4" rx="0.6" fill="currentColor" opacity="0.55" />
+            <rect x="7" y="10.1" width="2.4" height="2.4" rx="0.6" fill="currentColor" opacity="0.55" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">Toy Search System</h1>
+          <p class="hidden sm:block text-xs text-gray-400 dark:text-gray-500 mt-0.5">Search products by photo &amp; manage stock</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <button
+          @click="toggleTheme()"
+          type="button"
+          :title="darkMode ? 'Switch to light mode' : 'Switch to dark mode'"
+          class="text-gray-500 dark:text-gray-400 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 dark:hover:text-white border border-gray-200 dark:border-gray-700 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500 rounded-lg p-2 transition"
+        >
+          <svg x-show="!darkMode" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" /></svg>
+          <svg x-show="darkMode" x-cloak class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" /></svg>
+        </button>
+        <div class="hidden sm:flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-400">
+          <span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-400" x-text="(user?.username || '?').slice(0,1).toUpperCase()"></span>
+          <span x-text="user?.username || ''"></span>
+          <span x-show="user" class="text-[11px] font-semibold rounded-full px-2 py-0.5" :class="roleBadgeClass(user?.role)" x-text="user?.role"</span>
+        </div>
+        <button @click="logout()" class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 border border-gray-200 dark:border-gray-700 hover:border-red-200 dark:hover:border-red-500/40 rounded-lg px-3 py-1.5 transition">
+          Logout
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile nav dropdown -->
+    <nav x-show="mobileMenuOpen" x-cloak class="sm:hidden border-t border-gray-100 dark:border-gray-800 px-4 py-3 space-y-1" @click.outside="mobileMenuOpen = false">
+      <div class="flex items-center gap-2 px-3 pb-2 mb-1 border-b border-gray-100 dark:border-gray-800 text-sm text-gray-500 dark:text-gray-400">
+        <span class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-400" x-text="(user?.username || '?').slice(0,1).toUpperCase()"></span>
+        <span x-text="user?.username || ''"></span>
+        <span x-show="user" class="text-[11px] font-semibold rounded-full px-2 py-0.5" :class="roleBadgeClass(user?.role)" x-text="user?.role"</span>
+      </div>
+
+      <button
+        @click="toggleTheme()"
+        type="button"
+        class="w-full flex items-center gap-2.5 text-sm font-medium rounded-lg px-3 py-2 transition text-left text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200"
+      >
+        <svg x-show="!darkMode" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" /></svg>
+        <svg x-show="darkMode" x-cloak class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" /></svg>
+        <span x-text="darkMode ? 'Light mode' : 'Dark mode'"></span>
+      </button>
+
+      <button
+        @click="switchView('dashboard'); mobileMenuOpen = false"
+        class="w-full flex items-center gap-2.5 text-sm font-medium rounded-lg px-3 py-2 transition text-left"
+        :class="currentView === 'dashboard' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
+        Dashboard
+      </button>
+      <button
+        @click="switchView('products'); mobileMenuOpen = false"
+        class="w-full flex items-center gap-2.5 text-sm font-medium rounded-lg px-3 py-2 transition text-left"
+        :class="currentView === 'products' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>
+        Products
+      </button>
+      <button
+        @click="switchView('logs'); mobileMenuOpen = false"
+        class="w-full flex items-center gap-2.5 text-sm font-medium rounded-lg px-3 py-2 transition text-left"
+        :class="currentView === 'logs' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25v3.75l2.25 2.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+        Activity Log
+      </button>
+      <button
+        x-show="isAdmin"
+        @click="switchView('users'); mobileMenuOpen = false"
+        class="w-full flex items-center gap-2.5 text-sm font-medium rounded-lg px-3 py-2 transition text-left"
+        :class="currentView === 'users' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
+        Users
+      </button>
+    </nav>
+  </header>
+
+  <div class="flex max-w-7xl mx-auto">
+    <!-- Sidebar -->
+    <aside class="hidden sm:flex flex-col w-56 shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 pl-6 pr-4 py-6 gap-1">
+      <p class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Menu</p>
+      <button
+        @click="switchView('dashboard')"
+        class="flex items-center gap-2.5 text-sm font-medium rounded-lg px-3 py-2 transition text-left"
+        :class="currentView === 'dashboard' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
+        Dashboard
+      </button>
+      <button
+        @click="switchView('products')"
+        class="flex items-center gap-2.5 text-sm font-medium rounded-lg px-3 py-2 transition text-left"
+        :class="currentView === 'products' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>
+        Products
+      </button>
+      <button
+        @click="switchView('logs')"
+        class="flex items-center gap-2.5 text-sm font-medium rounded-lg px-3 py-2 transition text-left"
+        :class="currentView === 'logs' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25v3.75l2.25 2.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+        Activity Log
+      </button>
+      <button
+        x-show="isAdmin"
+        @click="switchView('users')"
+        class="flex items-center gap-2.5 text-sm font-medium rounded-lg px-3 py-2 transition text-left"
+        :class="currentView === 'users' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
+        Users
+      </button>
+    </aside>
+
+    <main class="flex-1 min-w-0 px-4 sm:px-6 py-6 sm:py-8 space-y-8">
+
+    <!-- Dashboard view -->
+    <template x-if="currentView === 'dashboard'">
+      <div class="space-y-6">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Dashboard</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 flex items-center gap-4">
+            <div class="w-11 h-11 shrink-0 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center">
+              <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Total Products</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-0.5" x-text="dashboardStats?.totalProducts ?? '—'"></p>
+            </div>
+          </div>
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 flex items-center gap-4">
+            <div class="w-11 h-11 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
+              <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Work Categories</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-0.5" x-text="dashboardStats?.byWorkCategory?.length ?? '—'"></p>
+            </div>
+          </div>
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 flex items-center gap-4">
+            <div class="w-11 h-11 shrink-0 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
+              <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Character Categories</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-0.5" x-text="dashboardStats?.byCharacterCategory?.length ?? '—'"></p>
+            </div>
+          </div>
+        </div>
+
+        <div x-show="dashboardLoading" class="text-sm text-gray-400 dark:text-gray-500 py-10 text-center">Loading dashboard…</div>
+
+        <div x-show="!dashboardLoading && dashboardStats" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">By Work Category (หมวดงาน)</h3>
+            <div class="space-y-3">
+              <template x-for="row in dashboardStats?.byWorkCategory ?? []" :key="row.category">
+                <div class="flex items-center gap-3">
+                  <span class="w-32 shrink-0 truncate text-xs text-gray-600 dark:text-gray-400" x-text="row.category"></span>
+                  <div class="flex-1 h-2 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                    <div class="h-full bg-indigo-500 rounded-full" :style="`width: ${barPct(row.count, dashboardStats.byWorkCategory)}%`"></div>
+                  </div>
+                  <span class="w-8 shrink-0 text-right text-xs font-medium text-gray-700 dark:text-gray-300" x-text="row.count"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">By Character Category (หมวดตัวละคร)</h3>
+            <div class="space-y-3">
+              <template x-for="row in dashboardStats?.byCharacterCategory ?? []" :key="row.category">
+                <div class="flex items-center gap-3">
+                  <span class="w-32 shrink-0 truncate text-xs text-gray-600 dark:text-gray-400" x-text="row.category"></span>
+                  <div class="flex-1 h-2 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                    <div class="h-full bg-emerald-500 rounded-full" :style="`width: ${barPct(row.count, dashboardStats.byCharacterCategory)}%`"></div>
+                  </div>
+                  <span class="w-8 shrink-0 text-right text-xs font-medium text-gray-700 dark:text-gray-300" x-text="row.count"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Activity log view -->
+    <template x-if="currentView === 'logs'">
+      <div class="space-y-4">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Activity Log</h2>
+
+        <div x-show="logsLoading" class="text-sm text-gray-400 dark:text-gray-500 py-10 text-center">Loading activity…</div>
+        <div x-show="!logsLoading && logs.length === 0" class="text-sm text-gray-400 dark:text-gray-500 py-16 text-center border border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">No activity yet.</div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm divide-y divide-gray-100 dark:divide-gray-800">
+          <template x-for="log in logs" :key="log.id">
+            <div class="p-4 flex items-start gap-3">
+              <span class="text-[11px] font-semibold rounded-full px-2 py-0.5 shrink-0" :class="actionBadgeClass(log.action)" x-text="log.action"></span>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm text-gray-700 dark:text-gray-300">
+                  <span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 rounded px-1.5 py-0.5" x-text="log.sku"></span>
+                  <span class="font-medium ml-1" x-text="log.modelName"></span>
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5" x-text="log.summary"></p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="text-xs text-gray-400 dark:text-gray-500" x-text="formatDateTime(log.createdAt)"></p>
+                <p class="text-xs text-gray-400 dark:text-gray-500" x-text="log.username"></p>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Users view -->
+    <template x-if="currentView === 'users' && isAdmin">
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Users</h2>
+          <button @click="openAddUserModal()" class="text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 shadow-sm transition">
+            + Add User
+          </button>
+        </div>
+
+        <div x-show="usersLoading" class="text-sm text-gray-400 dark:text-gray-500 py-10 text-center">Loading users…</div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm divide-y divide-gray-100 dark:divide-gray-800">
+          <template x-for="u in users" :key="u.id">
+            <div class="p-4 flex items-center gap-3">
+              <span class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-400 shrink-0" x-text="u.username.slice(0,1).toUpperCase()"></span>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100" x-text="u.username"></p>
+                <p class="text-xs text-gray-400 dark:text-gray-500" x-text="formatDateTime(u.createdAt)"></p>
+              </div>
+              <select
+                :value="u.role"
+                @change="updateUserRole(u, $event.target.value)"
+                :disabled="u.id === user.id"
+                class="text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 px-2 py-1.5 shrink-0 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50"
+                :class="roleBadgeClass(u.role)"
+              >
+                <option value="viewer">Lv.1 Viewer</option>
+                <option value="editor">Lv.2 Editor</option>
+                <option value="admin">Lv.3 Admin</option>
+              </select>
+              <button
+                x-show="u.id !== user.id && !(u.role === 'admin' && isLastAdmin())"
+                @click="deleteUserConfirmId = u.id"
+                class="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 border border-gray-200 dark:border-gray-700 hover:border-red-200 dark:hover:border-red-500/40 rounded-lg px-3 py-1.5 transition shrink-0"
+              >Delete</button>
+
+              <div x-show="deleteUserConfirmId === u.id" class="text-xs bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/30 rounded-lg p-2 flex items-center gap-2 shrink-0">
+                <span class="text-red-600 dark:text-red-400">Delete?</span>
+                <button @click="deleteUser(u.id)" class="font-semibold text-red-600 dark:text-red-400 hover:text-red-700">Yes</button>
+                <button @click="deleteUserConfirmId = null" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">No</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Products view -->
+    <template x-if="currentView === 'products'">
+    <div class="space-y-8">
+
+    <!-- Visual + barcode search -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Visual search dropzone -->
+    <section class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+      <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">Search by image</h2>
+      <div
+        class="relative rounded-xl border-2 border-dashed transition flex flex-col items-center justify-center text-center py-10 px-6 cursor-pointer"
+        :class="dragOver ? 'border-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10' : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-gray-50 dark:hover:bg-gray-700'"
+        @dragover.prevent="dragOver = true"
+        @dragleave.prevent="dragOver = false"
+        @drop.prevent="onDrop($event)"
+        @click="$refs.fileInput.click()"
+      >
+        <input type="file" accept="image/*" class="hidden" x-ref="fileInput" @change="onFileSelect($event)" />
+
+        <template x-if="!previewUrl">
+          <div>
+            <svg class="mx-auto w-10 h-10 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" />
+            </svg>
+            <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">Drag &amp; drop a product photo, or <span class="text-indigo-600 dark:text-indigo-400 font-medium">browse</span></p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Matches are found using CLIP image embeddings + cosine similarity</p>
+          </div>
+        </template>
+
+        <template x-if="previewUrl">
+          <div class="flex items-center gap-4">
+            <img :src="previewUrl" class="w-20 h-20 rounded-lg object-cover border border-gray-200 dark:border-gray-700" />
+            <div class="text-left">
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300" x-show="searchLoading">Searching…</p>
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300" x-show="!searchLoading" x-text="`${searchResults?.length ?? 0} match(es) found`"></p>
+              <button @click.stop="clearSearch()" class="mt-1 text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400">Clear and show all products</button>
+            </div>
+          </div>
+        </template>
+      </div>
+      <p x-show="searchError" x-text="searchError" class="mt-3 text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/30 rounded-lg px-3 py-2"></p>
+    </section>
+
+    <!-- Barcode scanner -->
+    <section class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+      <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">Search by barcode</h2>
+      <button
+        type="button"
+        @click="openScanner()"
+        class="w-full relative rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition flex flex-col items-center justify-center text-center py-10 px-6 cursor-pointer"
+      >
+        <svg class="mx-auto w-10 h-10 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+        </svg>
+        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">Tap to <span class="text-indigo-600 dark:text-indigo-400 font-medium">open the camera</span> and scan a JAN barcode</p>
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Point the camera at the barcode on the product box</p>
+      </button>
+    </section>
+
+    </div>
+
+    <!-- Results / catalog -->
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">
+          <span x-show="!searchResults">All Products (<span x-text="displayItems.length"></span><span x-show="displayItems.length !== products.length"> of <span x-text="products.length"></span></span>)</span>
+          <span x-show="searchResults">Search Results (<span x-text="searchResults?.length ?? 0"></span>)</span>
+        </h2>
+        <button x-show="!searchResults && canEdit" @click="openAddModal()" class="text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 shadow-sm transition">
+          + Add Product
+        </button>
+      </div>
+
+      <!-- Sort & filter toolbar -->
+      <div x-show="!searchResults" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 mb-4 flex flex-wrap items-center gap-3">
+        <input
+          x-model="filterQuery"
+          @keydown.enter="$event.target.select()"
+          type="text"
+          placeholder="Search"
+          class="flex-1 min-w-[200px] rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500"
+        />
+        <select x-model="filterWorkCategory" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+          <option value="">All Work Categories</option>
+          <template x-for="c in workCategoryOptions" :key="c">
+            <option :value="c" x-text="c"></option>
+          </template>
+        </select>
+        <select x-model="filterCharacterCategory" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+          <option value="">All Character Categories</option>
+          <template x-for="c in characterCategoryOptions" :key="c">
+            <option :value="c" x-text="c"></option>
+          </template>
+        </select>
+        <select x-model="sortBy" class="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500">
+          <option value="newest">Sort: Newest</option>
+          <option value="name-asc">Sort: Name A–Z</option>
+          <option value="sku-asc">Sort: SKU A–Z</option>
+          <option value="price-asc">Sort: Retail Price Low–High</option>
+          <option value="price-desc">Sort: Retail Price High–Low</option>
+        </select>
+        <button
+          x-show="filterQuery || filterWorkCategory || filterCharacterCategory || sortBy !== 'newest'"
+          @click="filterQuery = ''; filterWorkCategory = ''; filterCharacterCategory = ''; sortBy = 'newest'"
+          class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+        >Clear</button>
+      </div>
+
+      <div x-show="productsLoading" class="text-sm text-gray-400 dark:text-gray-500 py-10 text-center">Loading products…</div>
+
+      <div x-show="!productsLoading && displayItems.length === 0" class="text-sm text-gray-400 dark:text-gray-500 py-16 text-center border border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
+        <span x-show="searchResults">No matching products found.</span>
+        <span x-show="!searchResults && products.length > 0">No products match your filters.</span>
+        <span x-show="!searchResults && products.length === 0">No products yet. Click "Add Product" to create one.</span>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <template x-for="item in displayItems" :key="item.id">
+          <div x-data="{ expanded: false }" class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition overflow-hidden">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-2 p-2.5">
+              <div class="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-700 cursor-pointer group" @click="openGallery(item)">
+                <img :src="item.imageUrl" class="w-full h-full object-cover" loading="lazy" @error="$event.target.src='https://placehold.co/400x400?text=No+Image'" />
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
+                  <svg class="w-3 h-3 text-white opacity-0 group-hover:opacity-100 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                </div>
+                <span x-show="item.images && item.images.length > 1" class="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] text-center leading-tight" x-text="`${item.images.length}`"></span>
+                <span x-show="item.similarity !== null && item.similarity !== undefined"
+                      class="absolute -top-1.5 -right-1.5 bg-indigo-600 text-white text-[9px] font-semibold rounded-full px-1.5 py-0.5 shadow"
+                      x-text="`${item.similarity}%`"></span>
+              </div>
+
+              <div class="min-w-[140px] flex-1">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate" x-text="item.modelName"></h3>
+                <p class="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate">SKU <span x-text="item.sku"></span></p>
+                <p class="text-[11px] text-gray-400 dark:text-gray-500 font-mono truncate" x-text="item.jancode"></p>
+              </div>
+
+              <div class="text-right shrink-0">
+                <p class="text-[10px] text-gray-400 dark:text-gray-500 leading-none">ราคามือ 1</p>
+                <p class="text-sm font-bold text-gray-900 dark:text-gray-100" x-text="formatPrice(item.retailPrice)"></p>
+              </div>
+
+              <button
+                @click="expanded = !expanded"
+                class="shrink-0 flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition rounded px-1.5 py-1 hover:bg-indigo-50"
+              >
+                <span class="hidden sm:inline" x-text="expanded ? 'Hide' : 'More'"></span>
+                <svg class="w-3.5 h-3.5 transition-transform" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+              </button>
+
+              <div x-show="canEdit" class="shrink-0 flex gap-1">
+                <button @click="openEditModal(item)" class="text-[11px] font-medium text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-gray-200 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-500/40 rounded px-2 py-1 transition">Edit</button>
+                <button @click="deleteConfirmId = item.id" class="text-[11px] font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 border border-gray-200 dark:border-gray-700 hover:border-red-200 dark:hover:border-red-500/40 rounded px-2 py-1 transition">Delete</button>
+              </div>
+            </div>
+
+            <!-- inline delete confirm -->
+            <div x-show="canEdit && deleteConfirmId === item.id" class="mx-2.5 mb-2.5 text-xs bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/30 rounded-lg p-2 flex items-center justify-between gap-3">
+              <span class="text-red-600 dark:text-red-400">Delete this product?</span>
+              <div class="flex gap-2">
+                <button @click="deleteProduct(item.id)" class="font-semibold text-red-600 dark:text-red-400 hover:text-red-700">Yes</button>
+                <button @click="deleteConfirmId = null" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">No</button>
+              </div>
+            </div>
+
+              <div x-show="expanded" x-transition class="px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
+                      <th class="text-left font-medium pb-2">Price</th>
+                      <th class="text-right font-medium pb-2">Normal</th>
+                      <th class="text-right font-medium pb-2">Special</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="row in priceRows(item)" :key="row.label">
+                      <tr class="border-t border-gray-100 dark:border-gray-800">
+                        <td class="py-1 text-gray-500 dark:text-gray-400" x-text="row.label"></td>
+                        <td class="py-1 text-right font-medium text-gray-700 dark:text-gray-300" x-text="formatPrice(row.normal)"></td>
+                        <td class="py-1 text-right text-rose-500 dark:text-rose-400" x-text="formatPrice(row.special)"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+          </div>
+        </template>
+      </div>
+    </section>
+    </div>
+    </template>
+
+    </main>
+  </div>
+
+  <!-- Add / Edit modal -->
+  <div x-show="modalOpen" x-cloak class="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4" @keydown.escape.window="closeModal()">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" @click.outside="closeModal()">
+      <div class="flex items-center justify-between mb-5 pb-4 border-b border-gray-100 dark:border-gray-800">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100" x-text="editingId ? 'Edit Product' : 'Add Product'"></h3>
+        <button @click="closeModal()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">&times;</button>
+      </div>
+
+      <form @submit.prevent="saveProduct()" class="space-y-5">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="col-span-2">
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Image URL</label>
+            <div class="flex items-center gap-3">
+              <img x-show="form.imageUrl" :src="form.imageUrl" class="w-11 h-11 rounded-lg object-cover border border-gray-200 dark:border-gray-700 shrink-0" @error="$event.target.style.display = 'none'" @load="$event.target.style.display = ''" />
+              <input x-model="form.imageUrl" type="text" required class="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+              <button
+                type="button"
+                @click="$refs.productImageInput.click()"
+                :disabled="uploadingImage"
+                class="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-gray-200 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-500/40 rounded-lg px-3 py-2 transition disabled:opacity-50"
+              >
+                <span x-show="!uploadingImage">Upload</span>
+                <span x-show="uploadingImage">Uploading…</span>
+              </button>
+              <input type="file" accept="image/*" class="hidden" x-ref="productImageInput" @change="onProductImageSelect($event)" />
+            </div>
+            <p x-show="uploadError" x-text="uploadError" class="mt-1 text-xs text-red-500 dark:text-red-400"></p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">SKU</label>
+            <input x-model="form.sku" type="text" required class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">JAN Code</label>
+            <input x-model="form.jancode" type="text" required maxlength="13" placeholder="13-digit barcode" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Work Category (หมวดงาน)</label>
+            <input x-model="form.workCategory" type="text" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Character Category (หมวดตัวละคร)</label>
+            <input x-model="form.characterCategory" type="text" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Model Name (ชื่อรุ่น)</label>
+            <input x-model="form.modelName" type="text" required class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Character Name (ชื่อตัวละคร)</label>
+            <input x-model="form.characterName" type="text" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Series (ภาค)</label>
+            <input x-model="form.series" type="text" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Height (ความสูง)</label>
+            <input x-model="form.height" type="text" placeholder="e.g. 25 cm" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Weight (น้ำหนัก)</label>
+            <input x-model="form.weight" type="text" placeholder="e.g. 1.2 kg" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          </div>
+        </div>
+
+        <template x-if="editingId">
+          <div class="pt-5 border-t border-gray-100 dark:border-gray-800">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Additional Angle Photos</h4>
+              <button
+                type="button"
+                @click="$refs.angleImageInput.click()"
+                :disabled="uploadingAngle"
+                class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-gray-200 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-500/40 rounded-lg px-2.5 py-1 transition disabled:opacity-50"
+              >
+                <span x-show="!uploadingAngle">+ Add Photo</span>
+                <span x-show="uploadingAngle">Uploading…</span>
+              </button>
+              <input type="file" accept="image/*" class="hidden" x-ref="angleImageInput" @change="onAngleImageSelect($event)" />
+            </div>
+
+            <p x-show="angleUploadError" x-text="angleUploadError" class="mb-2 text-xs text-red-500 dark:text-red-400"></p>
+
+            <p x-show="productImages.length === 0" class="text-xs text-gray-400 dark:text-gray-500">No additional angles yet — the more angles you add, the better search matches.</p>
+
+            <div class="grid grid-cols-4 sm:grid-cols-5 gap-2">
+              <template x-for="img in productImages" :key="img.id">
+                <div class="relative group">
+                  <img :src="img.imageUrl" class="w-full aspect-square rounded-lg object-cover border border-gray-200 dark:border-gray-700" />
+                  <div class="absolute inset-0 rounded-lg bg-black/50 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-1">
+                    <button type="button" @click="setAngleAsPrimary(img)" class="text-white text-[10px] font-medium hover:text-indigo-300">Set primary</button>
+                    <button type="button" @click="deleteAngleImage(img)" class="text-white text-[10px] font-medium hover:text-red-300">Delete</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <div class="pt-5 border-t border-gray-100 dark:border-gray-800">
+          <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Pricing</h4>
+          <div class="grid grid-cols-3 gap-2 text-xs text-gray-400 dark:text-gray-500 px-1 mb-1">
+            <span></span><span>Normal</span><span>Special</span>
+          </div>
+          <div class="space-y-2">
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <label class="text-xs text-gray-500 dark:text-gray-400">Retail (ปลีก)</label>
+              <input x-model="form.retailPrice" type="number" step="0.01" required class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+              <input x-model="form.retailSpecialPrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+            </div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <label class="text-xs text-gray-500 dark:text-gray-400">Agent (ตัวแทน)</label>
+              <input x-model="form.agentPrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+              <span></span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <label class="text-xs text-gray-500 dark:text-gray-400">Used (มือสอง)</label>
+              <input x-model="form.usedPrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+              <input x-model="form.usedSpecialPrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+            </div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <label class="text-xs text-gray-500 dark:text-gray-400">Used Incomplete (มือสองไม่ครบ)</label>
+              <input x-model="form.usedIncompletePrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+              <input x-model="form.usedIncompleteSpecialPrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+            </div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <label class="text-xs text-gray-500 dark:text-gray-400">Parts (ตัวประกอบ)</label>
+              <input x-model="form.partPrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+              <input x-model="form.partSpecialPrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+            </div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <label class="text-xs text-gray-500 dark:text-gray-400">Parts Incomplete (ประกอบไม่ครบ)</label>
+              <input x-model="form.partIncompletePrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+              <input x-model="form.partIncompleteSpecialPrice" type="number" step="0.01" class="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+            </div>
+          </div>
+        </div>
+
+        <p x-show="formError" x-text="formError" class="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/30 rounded-lg px-3 py-2"></p>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <button type="button" @click="closeModal()" class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 transition">Cancel</button>
+          <button type="submit" :disabled="formSaving" class="text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 shadow-sm transition disabled:opacity-50">
+            <span x-show="!formSaving" x-text="editingId ? 'Save Changes' : 'Create Product'"></span>
+            <span x-show="formSaving">Saving…</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add User modal -->
+  <div x-show="userModalOpen" x-cloak class="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4" @keydown.escape.window="closeUserModal()">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-sm p-6" @click.outside="closeUserModal()">
+      <div class="flex items-center justify-between mb-5 pb-4 border-b border-gray-100 dark:border-gray-800">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100">Add User</h3>
+        <button @click="closeUserModal()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">&times;</button>
+      </div>
+
+      <form @submit.prevent="saveUser()" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Username</label>
+          <input x-model="userForm.username" type="text" required class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Password</label>
+          <input x-model="userForm.password" type="password" required minlength="6" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Role</label>
+          <select x-model="userForm.role" class="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+            <option value="viewer">Lv.1 Viewer — view prices only</option>
+            <option value="editor">Lv.2 Editor — view, edit, add/delete products</option>
+            <option value="admin">Lv.3 Admin — everything, including user management</option>
+          </select>
+        </div>
+
+        <p x-show="userFormError" x-text="userFormError" class="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/30 rounded-lg px-3 py-2"></p>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <button type="button" @click="closeUserModal()" class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 transition">Cancel</button>
+          <button type="submit" :disabled="userFormSaving" class="text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 shadow-sm transition disabled:opacity-50">
+            <span x-show="!userFormSaving">Create User</span>
+            <span x-show="userFormSaving">Saving…</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Barcode scanner -->
+  <div x-show="scannerOpen" x-cloak class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" @keydown.escape.window="closeScanner()">
+    <div class="w-full max-w-sm" @click.outside="closeScanner()">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-white text-sm font-medium">Scan JAN Barcode</p>
+        <button @click="closeScanner()" class="text-white/80 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+      <div id="barcode-reader" class="rounded-xl overflow-hidden bg-black min-h-[250px]"></div>
+      <p x-show="scannerError" x-text="scannerError" class="mt-3 text-sm text-red-200 bg-red-900/50 rounded-lg px-3 py-2"></p>
+      <p x-show="!scannerError" class="mt-3 text-xs text-white/60 text-center">Point the camera at the JAN barcode on the product box</p>
+    </div>
+  </div>
+
+  <!-- Photo gallery viewer -->
+  <div x-show="galleryOpen" x-cloak class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" @keydown.escape.window="galleryOpen = false" @keydown.arrow-left.window="galleryPrev()" @keydown.arrow-right.window="galleryNext()">
+    <button @click="galleryOpen = false" class="absolute top-4 right-4 text-white/80 hover:text-white text-2xl leading-none">&times;</button>
+
+    <div class="w-full max-w-2xl" @click.outside="galleryOpen = false">
+      <p class="text-white text-sm font-medium mb-3 text-center" x-text="galleryTitle"></p>
+
+      <div class="relative bg-black/30 rounded-xl overflow-hidden flex items-center justify-center" style="min-height: 300px;">
+        <button x-show="galleryImages.length > 1" @click="galleryPrev()" class="absolute left-2 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 rounded-full p-2 transition">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+        </button>
+        <img :src="galleryImages[galleryIndex]?.imageUrl" class="max-h-[70vh] w-auto object-contain" />
+        <button x-show="galleryImages.length > 1" @click="galleryNext()" class="absolute right-2 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 rounded-full p-2 transition">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+        </button>
+      </div>
+
+      <div x-show="galleryImages.length > 1" class="flex items-center justify-center gap-2 mt-3 flex-wrap">
+        <template x-for="(img, idx) in galleryImages" :key="img.id ?? idx">
+          <button @click="galleryIndex = idx" class="w-12 h-12 rounded-lg overflow-hidden border-2 transition" :class="idx === galleryIndex ? 'border-indigo-400' : 'border-transparent opacity-60 hover:opacity-100'">
+            <img :src="img.imageUrl" class="w-full h-full object-cover" />
+          </button>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div
+    x-show="toastMessage"
+    x-transition
+    x-cloak
+    class="fixed top-20 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium px-4 py-2.5 rounded-lg shadow-lg"
+  >
+    <svg class="w-4 h-4 text-emerald-400 dark:text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+    <span x-text="toastMessage"></span>
+  </div>
+
+  <script>
+    function emptyForm() {
+      return {
+        sku: '', jancode: '', imageUrl: '', workCategory: '', characterCategory: '', modelName: '', characterName: '', series: '', height: '', weight: '',
+        retailPrice: '', retailSpecialPrice: '', agentPrice: '',
+        usedPrice: '', usedSpecialPrice: '',
+        usedIncompletePrice: '', usedIncompleteSpecialPrice: '',
+        partPrice: '', partSpecialPrice: '',
+        partIncompletePrice: '', partIncompleteSpecialPrice: '',
+      };
+    }
+
+    function app() {
+      return {
+        user: null,
+        darkMode: document.documentElement.classList.contains('dark'),
+        currentView: 'products',
+        mobileMenuOpen: false,
+        skuQuery: '',
+        scannerOpen: false,
+        scannerError: '',
+        scannerInstance: null,
+        scannerTargetRef: null,
+        products: [],
+        productsLoading: true,
+        searchResults: null,
+        searchLoading: false,
+        searchError: '',
+        dragOver: false,
+        previewUrl: null,
+        modalOpen: false,
+        editingId: null,
+        form: emptyForm(),
+        formError: '',
+        formSaving: false,
+        deleteConfirmId: null,
+        uploadingImage: false,
+        uploadError: '',
+        productImages: [],
+        uploadingAngle: false,
+        angleUploadError: '',
+        galleryOpen: false,
+        galleryImages: [],
+        galleryIndex: 0,
+        galleryTitle: '',
+        toastMessage: '',
+        toastTimer: null,
+        dashboardStats: null,
+        dashboardLoading: false,
+        logs: [],
+        logsLoading: false,
+        users: [],
+        usersLoading: false,
+        userModalOpen: false,
+        userForm: { username: '', password: '', role: 'viewer' },
+        userFormError: '',
+        userFormSaving: false,
+        deleteUserConfirmId: null,
+        filterQuery: '',
+        filterWorkCategory: '',
+        filterCharacterCategory: '',
+        sortBy: 'newest',
+
+        async init() {
+          await this.loadUser();
+          await this.loadProducts();
+        },
+
+        toggleTheme() {
+          this.darkMode = !this.darkMode;
+          document.documentElement.classList.toggle('dark', this.darkMode);
+          localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+        },
+
+        get roleLevel() {
+          return { viewer: 1, editor: 2, admin: 3 }[this.user?.role] || 0;
+        },
+
+        // Lv.2+ — view, edit, add/delete products
+        get canEdit() {
+          return this.roleLevel >= 2;
+        },
+
+        // Lv.3 — everything, including user management
+        get isAdmin() {
+          return this.roleLevel >= 3;
+        },
+
+        roleBadgeClass(role) {
+          if (role === 'admin') return 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400';
+          if (role === 'editor') return 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+          return 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
+        },
+
+        switchView(view) {
+          if (view === 'users' && !this.isAdmin) return;
+          this.currentView = view;
+          if (view === 'dashboard') this.loadDashboard();
+          if (view === 'logs') this.loadLogs();
+          if (view === 'users') this.loadUsers();
+        },
+
+        searchBySkuHeader(refName) {
+          const q = this.skuQuery.trim();
+          if (!q) return;
+          this.clearSearch();
+          this.filterQuery = q;
+          this.currentView = 'products';
+          this.mobileMenuOpen = false;
+          this.skuQuery = '';
+          // Clear + refocus so a barcode scanner (which types the code then sends Enter) can scan the next item right away.
+          if (refName) {
+            this.$nextTick(() => this.$refs[refName]?.focus());
+          }
+        },
+
+        async openScanner(refName) {
+          this.scannerError = '';
+          this.scannerTargetRef = refName || null;
+          this.scannerOpen = true;
+          await this.$nextTick();
+
+          if (typeof Html5Qrcode === 'undefined') {
+            this.scannerError = 'Could not load the scanner. Please try again or check your internet connection.';
+            return;
+          }
+
+          if (!window.isSecureContext) {
+            this.scannerError = 'This page is not served over HTTPS or localhost, so the browser will not grant camera access.';
+            return;
+          }
+
+          try {
+            this.scannerInstance = new Html5Qrcode('barcode-reader');
+            await this.scannerInstance.start(
+              { facingMode: 'environment' },
+              { fps: 10, qrbox: { width: 260, height: 160 } },
+              (decodedText) => this.onScanSuccess(decodedText),
+              () => {}, // fired continuously while no barcode is found in frame — ignore
+            );
+          } catch (err) {
+            const name = err?.name || '';
+            if (name === 'NotAllowedError' || /Permission denied/i.test(err?.message || '')) {
+              this.scannerError =
+                'Camera access was not granted — if you previously tapped "Don\'t Allow", Safari will not ask again. Open it manually: tap the "aA" icon in the address bar > Website Settings > Camera > Allow, then refresh this page.';
+            } else if (name === 'NotFoundError') {
+              this.scannerError = 'No camera was found on this device.';
+            } else if (name === 'NotReadableError') {
+              this.scannerError = 'Could not open the camera. Another app may be using it — close it and try again.';
+            } else {
+              this.scannerError = 'Could not open the camera: ' + (err?.message || err);
+            }
+          }
+        },
+
+        async closeScanner() {
+          if (this.scannerInstance) {
+            try {
+              await this.scannerInstance.stop();
+              this.scannerInstance.clear();
+            } catch (err) {
+              // camera may already be stopped/unavailable — nothing to clean up
+            }
+            this.scannerInstance = null;
+          }
+          this.scannerOpen = false;
+        },
+
+        async onScanSuccess(decodedText) {
+          if (!this.scannerInstance) return; // ignore duplicate decode events fired before stop() takes effect
+          const refName = this.scannerTargetRef;
+          await this.closeScanner();
+          this.skuQuery = decodedText;
+          this.searchBySkuHeader(refName);
+          this.showToast('Search successful');
+        },
+
+        showToast(message, duration = 2500) {
+          clearTimeout(this.toastTimer);
+          this.toastMessage = message;
+          this.toastTimer = setTimeout(() => {
+            this.toastMessage = '';
+          }, duration);
+        },
+
+        async loadUsers() {
+          this.usersLoading = true;
+          const res = await fetch('/api/users');
+          if (res.status === 401) {
+            window.location.href = '/login.html';
+            return;
+          }
+          const data = await res.json();
+          this.users = data.users || [];
+          this.usersLoading = false;
+        },
+
+        openAddUserModal() {
+          this.userForm = { username: '', password: '', role: 'viewer' };
+          this.userFormError = '';
+          this.userModalOpen = true;
+        },
+
+        isLastAdmin() {
+          return this.users.filter((u) => u.role === 'admin').length <= 1;
+        },
+
+        async updateUserRole(u, role) {
+          if (role === u.role) return;
+          const previousRole = u.role;
+          u.role = role; // optimistic update
+          const res = await fetch(`/api/users/${u.id}/role`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role }),
+          });
+          if (!res.ok) {
+            u.role = previousRole; // revert on failure (e.g. last-admin guard)
+            const data = await res.json().catch(() => ({}));
+            this.showToast(data.error || 'Could not update role');
+          }
+        },
+
+        closeUserModal() {
+          this.userModalOpen = false;
+        },
+
+        async saveUser() {
+          this.userFormSaving = true;
+          this.userFormError = '';
+          try {
+            const res = await fetch('/api/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.userForm),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              this.userFormError = data.error || 'Save failed';
+              this.userFormSaving = false;
+              return;
+            }
+            this.userModalOpen = false;
+            await this.loadUsers();
+          } catch (e) {
+            this.userFormError = 'Network error';
+          }
+          this.userFormSaving = false;
+        },
+
+        async deleteUser(id) {
+          await fetch(`/api/users/${id}`, { method: 'DELETE' });
+          this.deleteUserConfirmId = null;
+          await this.loadUsers();
+        },
+
+        async loadDashboard() {
+          this.dashboardLoading = true;
+          const res = await fetch('/api/dashboard/stats');
+          if (res.status === 401) {
+            window.location.href = '/login.html';
+            return;
+          }
+          this.dashboardStats = await res.json();
+          this.dashboardLoading = false;
+        },
+
+        async loadLogs() {
+          this.logsLoading = true;
+          const res = await fetch('/api/logs');
+          if (res.status === 401) {
+            window.location.href = '/login.html';
+            return;
+          }
+          const data = await res.json();
+          this.logs = data.logs || [];
+          this.logsLoading = false;
+        },
+
+        barPct(count, list) {
+          const max = Math.max(...list.map((r) => r.count), 1);
+          return Math.round((count / max) * 100);
+        },
+
+        actionBadgeClass(action) {
+          if (action === 'CREATE') return 'bg-emerald-50 text-emerald-600';
+          if (action === 'DELETE') return 'bg-red-50 text-red-600';
+          return 'bg-indigo-50 text-indigo-600';
+        },
+
+        formatDateTime(v) {
+          return new Date(v).toLocaleString();
+        },
+
+        async loadUser() {
+          const res = await fetch('/api/auth/me');
+          if (res.status === 401) {
+            window.location.href = '/login.html';
+            return;
+          }
+          const data = await res.json();
+          this.user = data.user;
+        },
+
+        async loadProducts() {
+          this.productsLoading = true;
+          const res = await fetch('/api/products');
+          if (res.status === 401) {
+            window.location.href = '/login.html';
+            return;
+          }
+          const data = await res.json();
+          this.products = data.products || [];
+          this.productsLoading = false;
+        },
+
+        async logout() {
+          await fetch('/api/auth/logout', { method: 'POST' });
+          window.location.href = '/login.html';
+        },
+
+        openGallery(item) {
+          this.galleryImages = item.images && item.images.length ? item.images : [{ imageUrl: item.imageUrl }];
+          const matchedIdx = item.matchedImageUrl
+            ? this.galleryImages.findIndex((img) => img.imageUrl === item.matchedImageUrl)
+            : -1;
+          this.galleryIndex = matchedIdx >= 0 ? matchedIdx : 0;
+          this.galleryTitle = item.modelName;
+          this.galleryOpen = true;
+        },
+
+        galleryPrev() {
+          if (!this.galleryImages.length) return;
+          this.galleryIndex = (this.galleryIndex - 1 + this.galleryImages.length) % this.galleryImages.length;
+        },
+
+        galleryNext() {
+          if (!this.galleryImages.length) return;
+          this.galleryIndex = (this.galleryIndex + 1) % this.galleryImages.length;
+        },
+
+        get displayItems() {
+          if (this.searchResults) return this.searchResults;
+
+          let list = [...this.products];
+
+          if (this.filterWorkCategory) {
+            list = list.filter((p) => p.workCategory === this.filterWorkCategory);
+          }
+          if (this.filterCharacterCategory) {
+            list = list.filter((p) => p.characterCategory === this.filterCharacterCategory);
+          }
+          if (this.filterQuery.trim()) {
+            const q = this.filterQuery.trim().toLowerCase();
+            list = list.filter((p) =>
+              [p.sku, p.jancode, p.modelName, p.characterName, p.series].some((v) => (v || '').toLowerCase().includes(q)),
+            );
+          }
+
+          switch (this.sortBy) {
+            case 'name-asc':
+              list.sort((a, b) => a.modelName.localeCompare(b.modelName));
+              break;
+            case 'sku-asc':
+              list.sort((a, b) => a.sku.localeCompare(b.sku));
+              break;
+            case 'price-asc':
+              list.sort((a, b) => (a.retailPrice ?? 0) - (b.retailPrice ?? 0));
+              break;
+            case 'price-desc':
+              list.sort((a, b) => (b.retailPrice ?? 0) - (a.retailPrice ?? 0));
+              break;
+            default:
+              list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          }
+
+          return list;
+        },
+
+        get workCategoryOptions() {
+          return [...new Set(this.products.map((p) => p.workCategory).filter(Boolean))].sort();
+        },
+
+        get characterCategoryOptions() {
+          return [...new Set(this.products.map((p) => p.characterCategory).filter(Boolean))].sort();
+        },
+
+        onDrop(e) {
+          this.dragOver = false;
+          const file = e.dataTransfer.files[0];
+          if (file) this.runSearch(file);
+        },
+
+        onFileSelect(e) {
+          const file = e.target.files[0];
+          if (file) this.runSearch(file);
+          e.target.value = '';
+        },
+
+        async runSearch(file) {
+          this.searchLoading = true;
+          this.searchError = '';
+          if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+          this.previewUrl = URL.createObjectURL(file);
+
+          const fd = new FormData();
+          fd.append('image', file);
+          try {
+            const res = await fetch('/api/search', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!res.ok) {
+              this.searchError = data.error || 'Search failed';
+              this.searchLoading = false;
+              return;
+            }
+            this.searchResults = data.results;
+          } catch (e) {
+            this.searchError = 'Search failed, please try again';
+          }
+          this.searchLoading = false;
+        },
+
+        clearSearch() {
+          this.searchResults = null;
+          this.searchError = '';
+          if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+          this.previewUrl = null;
+        },
+
+        priceRows(p) {
+          return [
+            { label: 'Retail · มือ 1', normal: p.retailPrice, special: p.retailSpecialPrice },
+            { label: 'Used · มือสอง', normal: p.usedPrice, special: p.usedSpecialPrice },
+            { label: 'Parts · ตัวประกอบ', normal: p.partPrice, special: p.partSpecialPrice },
+          ];
+        },
+
+        formatPrice(v) {
+          if (v === null || v === undefined || v === '') return '—';
+          return '฿' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        },
+
+        openAddModal() {
+          this.editingId = null;
+          this.form = emptyForm();
+          this.formError = '';
+          this.uploadError = '';
+          this.productImages = [];
+          this.angleUploadError = '';
+          this.modalOpen = true;
+        },
+
+        openEditModal(p) {
+          this.editingId = p.id;
+          this.form = { ...emptyForm(), ...p };
+          this.formError = '';
+          this.uploadError = '';
+          this.productImages = (p.images || []).filter((img) => !img.isPrimary);
+          this.angleUploadError = '';
+          this.modalOpen = true;
+        },
+
+        async refreshEditingProduct() {
+          const res = await fetch(`/api/products/${this.editingId}`);
+          const data = await res.json();
+          this.form.imageUrl = data.product.imageUrl;
+          this.productImages = (data.product.images || []).filter((img) => !img.isPrimary);
+          await this.loadProducts();
+        },
+
+        onAngleImageSelect(e) {
+          const file = e.target.files[0];
+          if (file) this.uploadAngleImage(file);
+          e.target.value = '';
+        },
+
+        async uploadAngleImage(file) {
+          this.uploadingAngle = true;
+          this.angleUploadError = '';
+          const fd = new FormData();
+          fd.append('image', file);
+          try {
+            const uploadRes = await fetch('/api/products/upload-image', { method: 'POST', body: fd });
+            const uploadData = await uploadRes.json();
+            if (!uploadRes.ok) {
+              this.angleUploadError = uploadData.error || 'Upload failed';
+              this.uploadingAngle = false;
+              return;
+            }
+            const attachRes = await fetch(`/api/products/${this.editingId}/images`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageUrl: uploadData.imageUrl, vectorEmbedding: uploadData.vectorEmbedding }),
+            });
+            const attachData = await attachRes.json();
+            if (!attachRes.ok) {
+              this.angleUploadError = attachData.error || 'Could not attach photo';
+              this.uploadingAngle = false;
+              return;
+            }
+            this.productImages.push(attachData.image);
+          } catch (e) {
+            this.angleUploadError = 'Upload failed, please try again';
+          }
+          this.uploadingAngle = false;
+        },
+
+        async setAngleAsPrimary(img) {
+          await fetch(`/api/products/${this.editingId}/images/${img.id}/set-primary`, { method: 'PATCH' });
+          await this.refreshEditingProduct();
+        },
+
+        async deleteAngleImage(img) {
+          await fetch(`/api/products/${this.editingId}/images/${img.id}`, { method: 'DELETE' });
+          this.productImages = this.productImages.filter((i) => i.id !== img.id);
+        },
+
+        onProductImageSelect(e) {
+          const file = e.target.files[0];
+          if (file) this.uploadProductImage(file);
+          e.target.value = '';
+        },
+
+        async uploadProductImage(file) {
+          this.uploadingImage = true;
+          this.uploadError = '';
+          const fd = new FormData();
+          fd.append('image', file);
+          try {
+            const res = await fetch('/api/products/upload-image', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!res.ok) {
+              this.uploadError = data.error || 'Upload failed';
+              this.uploadingImage = false;
+              return;
+            }
+            this.form.imageUrl = data.imageUrl;
+            this.form.vectorEmbedding = data.vectorEmbedding;
+          } catch (e) {
+            this.uploadError = 'Upload failed, please try again';
+          }
+          this.uploadingImage = false;
+        },
+
+        closeModal() {
+          this.modalOpen = false;
+        },
+
+        async saveProduct() {
+          this.formSaving = true;
+          this.formError = '';
+          const method = this.editingId ? 'PUT' : 'POST';
+          const url = this.editingId ? `/api/products/${this.editingId}` : '/api/products';
+          try {
+            const res = await fetch(url, {
+              method,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.form),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              this.formError = data.error || 'Save failed';
+              this.formSaving = false;
+              return;
+            }
+            this.modalOpen = false;
+            await this.loadProducts();
+          } catch (e) {
+            this.formError = 'Network error';
+          }
+          this.formSaving = false;
+        },
+
+        async deleteProduct(id) {
+          await fetch(`/api/products/${id}`, { method: 'DELETE' });
+          this.deleteConfirmId = null;
+          await this.loadProducts();
+        },
+      };
+    }
+  </script>
+</body>
+</html>
