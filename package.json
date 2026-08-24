@@ -4,6 +4,9 @@
   "description": "Visual product search app with authentication, product management, and CLIP-based image similarity search",
   "type": "module",
   "main": "server.js",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",

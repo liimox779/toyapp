@@ -50,13 +50,6 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-console.log('DIAG openssl:', process.versions.openssl, 'node:', process.version, 'platform:', process.platform, process.report?.getReport?.()?.header?.glibcVersionRuntime);
-import('child_process').then(({ execSync }) => {
-  try { console.log('DIAG os-release:', execSync('cat /etc/os-release').toString()); } catch (e) { console.log('DIAG os-release failed:', e.message); }
-  try { console.log('DIAG ldd:', execSync('ldd --version 2>&1 | head -1').toString()); } catch (e) { console.log('DIAG ldd failed:', e.message); }
-  try { console.log('DIAG openssl-cli:', execSync('openssl version').toString()); } catch (e) { console.log('DIAG openssl-cli failed:', e.message); }
-});
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Visual Product Search running at http://localhost:${PORT}`);
