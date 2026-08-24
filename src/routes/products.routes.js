@@ -1,7 +1,4 @@
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
-import { fileURLToPath } from 'url';
 import { Router } from 'express';
 import multer from 'multer';
 import { prisma } from '../lib/prisma.js';
@@ -9,12 +6,10 @@ import { requireAuth, requireEditor } from '../middleware/auth.js';
 import { guardRequestStream } from '../middleware/uploadGuard.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { embedImageFromUrl, embedImageFromBuffer } from '../lib/embeddings.js';
+import { uploadToStorage, deleteFromStorage } from '../lib/storage.js';
 
 export const productsRouter = Router();
 productsRouter.use(requireAuth);
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UPLOADS_DIR = path.join(__dirname, '..', '..', 'public', 'images', 'uploads');
 
 const EXT_BY_MIME = {
   'image/jpeg': 'jpg',
@@ -117,8 +112,7 @@ productsRouter.post('/upload-image', requireEditor, guardRequestStream, upload.s
 
   const ext = EXT_BY_MIME[req.file.mimetype] || 'jpg';
   const filename = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  fs.writeFileSync(path.join(UPLOADS_DIR, filename), req.file.buffer);
+  const imageUrl = await uploadToStorage(filename, req.file.buffer, req.file.mimetype);
 
   let vectorEmbedding = null;
   try {
@@ -127,7 +121,7 @@ productsRouter.post('/upload-image', requireEditor, guardRequestStream, upload.s
     console.warn(`Embedding computation failed for uploaded image: ${err.message}`);
   }
 
-  res.json({ imageUrl: `/images/uploads/${filename}`, vectorEmbedding });
+  res.json({ imageUrl, vectorEmbedding });
 }));
 
 productsRouter.get('/', asyncHandler(async (req, res) => {
@@ -290,6 +284,7 @@ productsRouter.delete('/:id/images/:imageId', requireEditor, asyncHandler(async 
   }
 
   await prisma.productImage.delete({ where: { id: imageId } });
+  await deleteFromStorage(image.imageUrl).catch((err) => console.warn(`Storage cleanup failed: ${err.message}`));
 
   if (image.isPrimary) {
     const next = await prisma.productImage.findFirst({ where: { productId }, orderBy: { createdAt: 'asc' } });
